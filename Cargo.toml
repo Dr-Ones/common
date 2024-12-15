@@ -2,5 +2,12 @@
 name = "common"
 version = "0.1.0"
 edition = "2021"
+description = "Common utilities for the dr_ones network simulator"
 
 [dependencies]
+wg_2024 = { git = "https://github.com/WGL-2024/WGL_repo_2024.git", features = [
+    "serialize",
+    "debug",
+] }
+rand = "0.8.5"
+crossbeam-channel = "0.5.0"
