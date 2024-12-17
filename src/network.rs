@@ -1,7 +1,7 @@
 //! Network utilities module.
 //! Provides common functionality for network nodes (drones, clients, and servers).
 
-use crossbeam_channel::Sender;
+use crossbeam_channel::{Receiver, Sender};
 use rand::rngs::StdRng;
 use std::collections::HashMap;
 use wg_2024::{network::NodeId, packet::Packet};
@@ -15,6 +15,9 @@ pub trait NetworkUtils {
 
     /// Returns a reference to the map of packet senders for connected nodes.
     fn get_packet_senders(&self) -> &HashMap<NodeId, Sender<Packet>>;
+
+    /// Returns a reference to the receiver channel for incoming packets.
+    fn get_packet_receiver(&self) -> &Receiver<Packet>;
 
     /// Returns a mutable reference to the random number generator.
     fn get_random_generator(&mut self) -> &mut StdRng;
@@ -55,6 +58,7 @@ mod tests {
     struct TestNode {
         id: NodeId,
         senders: HashMap<NodeId, Sender<Packet>>,
+        receiver: Receiver<Packet>,
         rng: StdRng,
     }
 
@@ -67,6 +71,10 @@ mod tests {
             &self.senders
         }
 
+        fn get_packet_receiver(&self) -> &Receiver<Packet> {
+            &self.receiver
+        }
+
         fn get_random_generator(&mut self) -> &mut StdRng {
             &mut self.rng
         }
@@ -77,6 +85,7 @@ mod tests {
             Self {
                 id,
                 senders: HashMap::new(),
+                receiver: unbounded().1,
                 rng: StdRng::from_entropy(),
             }
         }
