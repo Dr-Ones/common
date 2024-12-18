@@ -1,10 +1,12 @@
 //! Network utilities module.
 //! Provides common functionality for network nodes (drones, clients, and servers).
 
+use rand::Rng;
 use crossbeam_channel::{Receiver, Sender};
 use rand::rngs::StdRng;
 use std::collections::HashMap;
-use wg_2024::{network::NodeId, packet::Packet};
+use wg_2024::{network::{NodeId, SourceRoutingHeader}, packet::{Packet, NodeType, FloodResponse, FloodRequest}};
+use wg_2024::packet::PacketType;
 
 /// Common network functionality shared across different node types.
 /// This trait provides basic network operations that all network nodes
@@ -40,6 +42,39 @@ pub trait NetworkUtils {
                 self.get_id(),
                 &format!("No channel found for next hop: {:?}", next_hop_id),
             );
+        }
+    }
+
+    fn build_flood_response(
+        &mut self,
+        packet: Packet,
+        updated_path_trace: Vec<(NodeId, NodeType)>,
+    ) -> Packet {
+        if let PacketType::FloodRequest(flood_request) = packet.pack_type {
+            let flood_response = FloodResponse {
+                flood_id: flood_request.flood_id,
+                path_trace: updated_path_trace,
+            };
+
+            let mut route_back: Vec<NodeId> = flood_response
+                .path_trace
+                .iter()
+                .map(|tuple| tuple.0)
+                .collect();
+            route_back.reverse();
+
+            let new_routing_header = SourceRoutingHeader {
+                hop_index: 1,
+                hops: route_back,
+            };
+
+            Packet {
+                pack_type: PacketType::FloodResponse(flood_response),
+                routing_header: new_routing_header,
+                session_id: self.get_random_generator().gen(),
+            }
+        } else {
+            panic!("Error! Attempt to build flood response from non-flood request packet");
         }
     }
 }
