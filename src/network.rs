@@ -15,7 +15,8 @@ pub trait NetworkUtils {
     /// Returns the unique identifier of this network node.
     fn get_id(&self) -> NodeId;
 
-    fn get_seen_flood_ids(&mut self) -> &mut HashSet<u64>;
+    // TODO: this function belongs only to client and server. The drone has "seen flood ids" instead
+    // fn get_initiated_flood_ids(&mut self) -> &mut HashSet<u64>;
 
     /// Returns a reference to the map of packet senders for connected nodes.
     fn get_packet_send(&self) -> &HashMap<NodeId, Sender<Packet>>;
@@ -59,7 +60,7 @@ pub trait NetworkUtils {
             // 1. Process some tests on the drone and its neighbours to know how to handle the flood request
 
             // a. Check if the drone has already received the flood request
-            let flood_request_is_already_received: bool = self.get_seen_flood_ids()
+            let flood_request_is_already_received: bool = self.get_my_initiated_flood_ids()
                 .iter()
                 .any(|id| *id == flood_request.flood_id);
 
@@ -90,7 +91,7 @@ pub trait NetworkUtils {
             } else {
                 // The packet should be broadcast
                 // eprintln!("Drone id: {} -> flood_request with path_trace: {:?} broadcasted to peers: {:?}", self.id, flood_request.path_trace, self.packet_send.keys());
-                self.get_seen_flood_ids().insert(flood_request.flood_id);
+                self.get_my_initiated_flood_ids().insert(flood_request.flood_id);
 
                 // Create the new packet with the updated flood_request
                 let updated_packet = Packet {
@@ -179,7 +180,7 @@ mod tests {
             self.id
         }
 
-        fn get_seen_flood_ids(&mut self) -> &mut HashSet<u64> {
+        fn get_my_initiated_flood_ids(&mut self) -> &mut HashSet<u64> {
             &mut self.seen_flood_ids
         }
 
