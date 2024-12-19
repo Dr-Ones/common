@@ -7,7 +7,6 @@ use rand::rngs::StdRng;
 use std::collections::{HashMap, HashSet};
 use wg_2024::{network::{NodeId, SourceRoutingHeader}, packet::{Packet, NodeType, FloodResponse, FloodRequest}};
 use wg_2024::packet::PacketType;
-use indexmap::{IndexSet};
 
 /// Common network functionality shared across different node types.
 /// This trait provides basic network operations that all network nodes
@@ -169,7 +168,7 @@ mod tests {
 
     struct TestNode {
         id: NodeId,
-        seen_flood_ids: IndexSet<NodeId>,
+        seen_flood_ids: HashSet<u64>,
         senders: HashMap<NodeId, Sender<Packet>>,
         receiver: Receiver<Packet>,
         rng: StdRng,
@@ -180,8 +179,8 @@ mod tests {
             self.id
         }
 
-        fn get_seen_flood_ids(&self) -> &IndexSet<NodeId> {
-            &self.seen_flood_ids
+        fn get_seen_flood_ids(&mut self) -> &mut HashSet<u64> {
+            &mut self.seen_flood_ids
         }
 
         fn get_packet_send(&self) -> &HashMap<NodeId, Sender<Packet>> {
@@ -201,7 +200,7 @@ mod tests {
         fn new(id: NodeId) -> Self {
             Self {
                 id,
-                seen_flood_ids: IndexSet::new(),
+                seen_flood_ids: HashSet::new(),
                 senders: HashMap::new(),
                 receiver: unbounded().1,
                 rng: StdRng::from_entropy(),
