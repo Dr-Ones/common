@@ -71,7 +71,7 @@ pub trait NetworkUtils {
             // If I have only one neighbour, I must have received this message from it and i don't have anybody else to forward it to
             let has_no_neighbour: bool = self.get_packet_send().len() == 1;
 
-            // 2. Check if the flood request should be sent back as a flood response or broadcast as is
+            // 2. Check if the flood request should be sent back as a flood response or broadcasted as is
             if flood_request_is_already_received || has_no_neighbour {
                 // A flood response should be created and sent
 
@@ -80,13 +80,12 @@ pub trait NetworkUtils {
                 let flood_response_packet =
                     self.build_flood_response(packet, flood_request.path_trace);
 
-                // b. forward the flood response back
-                // eprintln!(
-                //     "[CLIENT {}] Sending FloodResponse sess_id:{} whose path is: {:?}",
-                //     self.id,
-                //     flood_response_packet.session_id,
-                //     flood_response_packet.routing_header.hops
-                // );
+                // // DEBUG
+                // if has_no_neighbour {
+                //     eprintln!("[NODE {}] has no neighbour -> Creating flood response. flood_id: {} hops: {:?}", self.get_id(), flood_request.flood_id, flood_response_packet.routing_header.hops);
+                // } else if flood_request_is_already_received {
+                //     eprintln!("[NODE {}] has already received flood request -> Creating flood response. flood_id: {} hops: {:?}", self.get_id(), flood_request.flood_id, flood_response_packet.routing_header.hops);
+                // }
                 self.forward_packet(flood_response_packet);
             } else {
                 // The packet should be broadcast
@@ -151,6 +150,13 @@ pub trait NetworkUtils {
             if let Err(e) = sender.send(packet.clone()) {
                 println!("Failed to send packet to NodeId {:?}: {:?}", node_id, e);
             }
+        }
+        if(*packet.routing_header.hops.first().unwrap() == 6) {
+            eprintln!(
+                "[NODE {}] broadcasted packet to peers: {:?}",
+                self.get_id(),
+                neighbours.keys()
+            );
         }
     }
 }
