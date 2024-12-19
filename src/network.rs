@@ -1,12 +1,13 @@
 //! Network utilities module.
 //! Provides common functionality for network nodes (drones, clients, and servers).
 
-use rand::Rng;
 use crossbeam_channel::{Receiver, Sender};
-use rand::rngs::StdRng;
+use rand::{rngs::StdRng, Rng};
 use std::collections::{HashMap, HashSet};
-use wg_2024::{network::{NodeId, SourceRoutingHeader}, packet::{Packet, NodeType, FloodResponse, FloodRequest}};
-use wg_2024::packet::PacketType;
+use wg_2024::{
+    network::{NodeId, SourceRoutingHeader},
+    packet::{NodeType, Packet, PacketType},
+};
 
 /// Common network functionality shared across different node types.
 /// This trait provides basic network operations that all network nodes
@@ -47,14 +48,14 @@ pub trait NetworkUtils {
         }
     }
 
-    fn handle_flood_request(&mut self, packet: Packet, nodeType:NodeType) {
+    fn handle_flood_request(&mut self, packet: Packet, node_type: NodeType) {
         // Check if the flood request should be broadcast or turned into a flood response and sent back
         if let PacketType::FloodRequest(mut flood_request) = packet.pack_type.clone() {
             // Take who sent this floodRequest (test and logpurposes)
             let who_sent_me_this_flood_request = flood_request.path_trace.last().unwrap().0;
 
             // Add self to the path trace
-            flood_request.path_trace.push((self.get_id(), nodeType));
+            flood_request.path_trace.push((self.get_id(), node_type));
 
             // 1. Process some tests on the drone and its neighbours to know how to handle the flood request
 
@@ -133,7 +134,6 @@ pub trait NetworkUtils {
             panic!("Error! Attempt to build flood response from non-flood request packet");
         }
     }
-
 
     // forward packet to a selected group of nodes in a flooding context
     fn broadcast_packet(&self, packet: Packet, who_i_received_the_packet_from: NodeId) {
