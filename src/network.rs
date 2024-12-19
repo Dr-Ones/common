@@ -51,6 +51,12 @@ pub trait NetworkUtils {
     fn handle_flood_request(&mut self, packet: Packet, node_type: NodeType) {
         // Check if the flood request should be broadcast or turned into a flood response and sent back
         if let PacketType::FloodRequest(mut flood_request) = packet.pack_type.clone() {
+            // // DEBUG
+            // eprintln!(
+            //     "[NODE {}] received flood request with path_trace: {:?}",
+            //     self.get_id(),
+            //     flood_request.path_trace
+            // );
             // Take who sent this floodRequest (test and logpurposes)
             let who_sent_me_this_flood_request = flood_request.path_trace.last().unwrap().0;
 
@@ -81,11 +87,11 @@ pub trait NetworkUtils {
                     self.build_flood_response(packet, flood_request.path_trace);
 
                 // // DEBUG
-                // if has_no_neighbour {
-                //     eprintln!("[NODE {}] has no neighbour -> Creating flood response. flood_id: {} hops: {:?}", self.get_id(), flood_request.flood_id, flood_response_packet.routing_header.hops);
-                // } else if flood_request_is_already_received {
-                //     eprintln!("[NODE {}] has already received flood request -> Creating flood response. flood_id: {} hops: {:?}", self.get_id(), flood_request.flood_id, flood_response_packet.routing_header.hops);
-                // }
+                if has_no_neighbour {
+                    eprintln!("[NODE {}] has no neighbour -> Creating flood response. flood_id: {} hops: {:?}", self.get_id(), flood_request.flood_id, flood_response_packet.routing_header.hops);
+                } else if flood_request_is_already_received {
+                    eprintln!("[NODE {}] has already received flood request -> Creating flood response. flood_id: {} hops: {:?}", self.get_id(), flood_request.flood_id, flood_response_packet.routing_header.hops);
+                }
                 self.forward_packet(flood_response_packet);
             } else {
                 // The packet should be broadcast
@@ -150,13 +156,6 @@ pub trait NetworkUtils {
             if let Err(e) = sender.send(packet.clone()) {
                 println!("Failed to send packet to NodeId {:?}: {:?}", node_id, e);
             }
-        }
-        if(*packet.routing_header.hops.first().unwrap() == 6) {
-            eprintln!(
-                "[NODE {}] broadcasted packet to peers: {:?}",
-                self.get_id(),
-                neighbours.keys()
-            );
         }
     }
 }
