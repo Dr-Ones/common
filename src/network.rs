@@ -184,6 +184,10 @@ mod tests {
             self.id
         }
 
+        fn get_seen_flood_ids(&mut self) -> &mut HashSet<u64> {
+            &mut self.seen_flood_ids
+        }
+
         fn get_packet_send(&self) -> &HashMap<NodeId, Sender<Packet>> {
             &self.senders
         }
@@ -194,10 +198,6 @@ mod tests {
 
         fn get_random_generator(&mut self) -> &mut StdRng {
             &mut self.rng
-        }
-
-        fn get_seen_flood_ids(&mut self) -> &mut HashSet<u64> {
-            &mut self.seen_flood_ids
         }
         
     }
