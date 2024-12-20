@@ -87,11 +87,12 @@ pub trait NetworkUtils {
                     self.build_flood_response(packet, flood_request.path_trace);
 
                 // // DEBUG
-                if has_no_neighbour {
-                    eprintln!("[NODE {}] has no neighbour -> Creating flood response. flood_id: {} hops: {:?}", self.get_id(), flood_request.flood_id, flood_response_packet.routing_header.hops);
-                } else if flood_request_is_already_received {
-                    eprintln!("[NODE {}] has already received flood request -> Creating flood response. flood_id: {} hops: {:?}", self.get_id(), flood_request.flood_id, flood_response_packet.routing_header.hops);
-                }
+                // if has_no_neighbour {
+                //     eprintln!("[NODE {}] has no neighbour -> Creating flood response. flood_id: {} hops: {:?}", self.get_id(), flood_request.flood_id, flood_response_packet.routing_header.hops);
+                // } else if flood_request_is_already_received {
+                //     eprintln!("[NODE {}] has already received flood request -> Creating flood response. flood_id: {} hops: {:?}", self.get_id(), flood_request.flood_id, flood_response_packet.routing_header.hops);
+                // }
+                
                 self.forward_packet(flood_response_packet);
             } else {
                 // The packet should be broadcast
