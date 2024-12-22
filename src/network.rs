@@ -19,13 +19,22 @@ pub trait NetworkNode {
     fn get_seen_flood_ids(&mut self) -> &mut HashSet<u64>;
 
     /// Returns a reference to the map of packet senders for connected nodes.
-    fn get_packet_send(&self) -> &HashMap<NodeId, Sender<Packet>>;
+    fn get_packet_send(&mut self) -> &mut HashMap<NodeId, Sender<Packet>>;
 
     /// Returns a reference to the receiver channel for incoming packets.
     fn get_packet_receiver(&self) -> &Receiver<Packet>;
 
     /// Returns a mutable reference to the random number generator.
     fn get_random_generator(&mut self) -> &mut StdRng;
+
+    fn handle_routed_packet(&mut self, packet: Packet);
+
+    fn handle_packet(&mut self, packet: Packet) {
+        match packet.pack_type {
+            PacketType::FloodRequest(_) => self.handle_flood_request(packet, NodeType::Drone),
+            _ => self.handle_routed_packet(packet),
+        }
+    }
 
     /// Forwards a packet to the next hop in its routing path.
     ///
@@ -35,7 +44,7 @@ pub trait NetworkNode {
     /// # Panics
     /// * If the next hop's sender channel is not found
     /// * If sending the packet fails
-    fn forward_packet(&self, packet: Packet) {
+    fn forward_packet(&mut self, packet: Packet) {
         let next_hop_id = packet.routing_header.hops[packet.routing_header.hop_index];
 
         if let Some(sender) = self.get_packet_send().get(&next_hop_id) {
@@ -195,7 +204,7 @@ pub trait NetworkNode {
     }
 
     // forward packet to a selected group of nodes in a flooding context
-    fn broadcast_packet(&self, packet: Packet, who_i_received_the_packet_from: NodeId) {
+    fn broadcast_packet(&mut self, packet: Packet, who_i_received_the_packet_from: NodeId) {
         // Copy the list of the neighbours and remove the neighbour drone that sent the flood request
         let neighbours: HashMap<NodeId, Sender<Packet>> = self
             .get_packet_send()
@@ -234,6 +243,26 @@ pub trait NetworkNode {
         packet.routing_header = route_back;
     }
 
+    fn add_channel(&mut self, id: NodeId, sender: Sender<Packet>) {
+        let packet_send = self.get_packet_send();
+        packet_send.insert(id, sender);
+    }
+
+    fn remove_channel(&mut self, id: NodeId) {
+        if !self.get_packet_send().contains_key(&id) {
+            log_status(
+                self.get_id(),
+                &format!(
+                    "Error! The current node {} has no neighbour node {}.",
+                    self.get_id(), id
+                ),
+            );
+            return;
+        }
+        self.get_packet_send().remove(&id);
+    }
+
+
 }
 
 /// Helper function for consistent status logging
@@ -264,8 +293,8 @@ mod tests {
             &mut self.seen_flood_ids
         }
 
-        fn get_packet_send(&self) -> &HashMap<NodeId, Sender<Packet>> {
-            &self.senders
+        fn get_packet_send(&mut self) -> &mut HashMap<NodeId, Sender<Packet>> {
+            &mut self.senders
         }
 
         fn get_packet_receiver(&self) -> &Receiver<Packet> {
@@ -274,6 +303,10 @@ mod tests {
 
         fn get_random_generator(&mut self) -> &mut StdRng {
             &mut self.rng
+        }
+        
+        fn handle_routed_packet(&mut self, packet: Packet) {
+            todo!()
         }
         
     }
