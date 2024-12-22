@@ -5,8 +5,7 @@ use crossbeam_channel::{Receiver, Sender};
 use rand::{rngs::StdRng, Rng};
 use std::collections::{HashMap, HashSet};
 use wg_2024::{
-    network::{NodeId, SourceRoutingHeader},
-    packet::{Ack, Nack, NackType, NodeType, Packet, PacketType},
+    controller::DroneCommand, network::{NodeId, SourceRoutingHeader}, packet::{Ack, Nack, NackType, NodeType, Packet, PacketType}
 };
 
 /// Common network functionality shared across different node types.
@@ -28,6 +27,10 @@ pub trait NetworkNode {
     fn get_random_generator(&mut self) -> &mut StdRng;
 
     fn handle_routed_packet(&mut self, packet: Packet);
+
+    // TODO
+    //voglio che command prenda command come una variabile di un tipo generico e matchare sul tipo
+    fn handle_command(&mut self, command: DroneCommand); 
 
     fn handle_packet(&mut self, packet: Packet) {
         match packet.pack_type {
