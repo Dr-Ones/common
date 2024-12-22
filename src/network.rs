@@ -12,7 +12,7 @@ use wg_2024::{
 /// Common network functionality shared across different node types.
 /// This trait provides basic network operations that all network nodes
 /// (drones, clients, and servers) need to implement.
-pub trait NetworkUtils {
+pub trait NetworkNode {
     /// Returns the unique identifier of this network node.
     fn get_id(&self) -> NodeId;
 
@@ -121,7 +121,7 @@ pub trait NetworkUtils {
     ) -> Packet {
         if let PacketType::FloodRequest(flood_request) = packet.pack_type {
             let mut route_back: Vec<NodeId> = path_trace.iter().map(|tuple| tuple.0).collect();
-            route_back.reverse();
+            route_back.reverse(); // I don't know anything about this, but shouldn't we use reverse_packet_routing_direction?
 
             let new_routing_header = SourceRoutingHeader {
                 hop_index: 1,
@@ -159,6 +159,28 @@ pub trait NetworkUtils {
             }
         }
     }
+
+    fn reverse_packet_routing_direction(&self, packet: &mut Packet) {
+        // a. create the route back using the path trace of the packet
+        let mut hops_vec: Vec<NodeId> = packet.routing_header.hops.clone();
+
+        // remove the nodes that are not supposed to receive the packet anymore (between self and the original final destination of the packet)
+        hops_vec.drain(packet.routing_header.hop_index..=hops_vec.len() - 1);
+
+        // reverse the order of the nodes to reach in comparison with the original routing header
+        hops_vec.reverse();
+
+        let route_back: SourceRoutingHeader = SourceRoutingHeader {
+            //THE SOURCEROUTINGHEADER SAYS THAT THE HOP INDEX SHOULD BE INITIALIZED AS 1, BUT
+            //KEEP IN MIND THAT IN THIS WAY THE NODE THAT RECEIVES THIS PACKET WILL SEE ITSELF IN THE PATH_TRACE[HOP_INDEX]
+            hop_index: 1, // Start from the first hop
+            hops: hops_vec,
+        };
+
+        // b. update the packet's routing header
+        packet.routing_header = route_back;
+    }
+
 }
 
 /// Helper function for consistent status logging
@@ -180,7 +202,7 @@ mod tests {
         rng: StdRng,
     }
 
-    impl NetworkUtils for TestNode {
+    impl NetworkNode for TestNode {
         fn get_id(&self) -> NodeId {
             self.id
         }
