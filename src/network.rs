@@ -8,6 +8,21 @@ use wg_2024::{
     controller::DroneCommand, network::{NodeId, SourceRoutingHeader}, packet::{Ack, Nack, NackType, NodeType, Packet, PacketType}
 };
 
+pub enum ClientCommand {
+    GetFilesList,
+    SendPacket(Packet),
+}
+
+pub enum ServerCommand {
+    ChangeThisCommand,
+}
+
+pub enum Command {
+    Client(ClientCommand),
+    Server(ServerCommand),
+    Drone(DroneCommand)
+}
+
 /// Common network functionality shared across different node types.
 /// This trait provides basic network operations that all network nodes
 /// (drones, clients, and servers) need to implement.
@@ -28,9 +43,7 @@ pub trait NetworkNode {
 
     fn handle_routed_packet(&mut self, packet: Packet);
 
-    // TODO
-    //voglio che command prenda command come una variabile di un tipo generico e matchare sul tipo
-    fn handle_command(&mut self, command: DroneCommand); 
+    fn handle_command(&mut self, command: Command); 
 
     fn handle_packet(&mut self, packet: Packet) {
         match packet.pack_type {
