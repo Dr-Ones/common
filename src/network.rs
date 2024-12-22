@@ -6,7 +6,7 @@ use rand::{rngs::StdRng, Rng};
 use std::collections::{HashMap, HashSet};
 use wg_2024::{
     network::{NodeId, SourceRoutingHeader},
-    packet::{NodeType, Packet, PacketType},
+    packet::{Ack, Nack, NackType, NodeType, Packet, PacketType},
 };
 
 /// Common network functionality shared across different node types.
@@ -46,6 +46,59 @@ pub trait NetworkNode {
                 &format!("No channel found for next hop: {:?}", next_hop_id),
             );
         }
+    }
+
+    fn build_nack(&self, packet: Packet, nack_type: NackType) -> Packet {
+        let fragment_index = match &packet.pack_type {
+            PacketType::MsgFragment(fragment) => fragment.fragment_index,
+            _ => 0,
+        };
+
+        let nack = Nack {
+            fragment_index,
+            nack_type,
+        };
+
+        let mut response = Packet {
+            pack_type: PacketType::Nack(nack),
+            routing_header: packet.routing_header,
+            session_id: packet.session_id,
+        };
+
+        self.reverse_packet_routing_direction(&mut response);
+        response
+    }
+
+    fn build_ack(&self, packet: Packet) -> Packet {
+        // 1. Keep in the ack the fragment index if the packet contains a fragment
+        let frag_index: u64;
+
+        if let PacketType::MsgFragment(fragment) = &packet.pack_type {
+            frag_index = fragment.fragment_index;
+        } else {
+            eprintln!("Error : attempt of building an ack on a non-fragment packet.");
+            panic!()
+        }
+
+        // 2. Build the Aack instance of the packet to return
+        let ack: Ack = Ack {
+            fragment_index: frag_index,
+        };
+
+        // 3. Build the packet
+        let packet_type = PacketType::Ack(ack);
+
+        let mut packet: Packet = Packet {
+            pack_type: packet_type,
+            routing_header: packet.routing_header,
+            session_id: packet.session_id,
+        };
+
+        // 4. Reverse the routing direction of the packet because nacks need to be sent back
+        self.reverse_packet_routing_direction(&mut packet);
+
+        // 5. Return the packet
+        packet
     }
 
     fn handle_flood_request(&mut self, packet: Packet, node_type: NodeType) {
