@@ -5,7 +5,9 @@ use crossbeam_channel::{Receiver, Sender};
 use rand::{rngs::StdRng, Rng};
 use std::collections::{HashMap, HashSet};
 use wg_2024::{
-    controller::DroneCommand, network::{NodeId, SourceRoutingHeader}, packet::{Ack, Nack, NackType, NodeType, Packet, PacketType}
+    controller::DroneCommand,
+    network::{NodeId, SourceRoutingHeader},
+    packet::{Ack, Nack, NackType, NodeType, Packet, PacketType},
 };
 
 pub enum ClientCommand {
@@ -20,7 +22,7 @@ pub enum ServerCommand {
 pub enum Command {
     Client(ClientCommand),
     Server(ServerCommand),
-    Drone(DroneCommand)
+    Drone(DroneCommand),
 }
 
 /// Common network functionality shared across different node types.
@@ -43,7 +45,7 @@ pub trait NetworkNode {
 
     fn handle_routed_packet(&mut self, packet: Packet);
 
-    fn handle_command(&mut self, command: Command); 
+    fn handle_command(&mut self, command: Command);
 
     fn handle_packet(&mut self, packet: Packet) {
         match packet.pack_type {
@@ -144,7 +146,8 @@ pub trait NetworkNode {
             // 1. Process some tests on the drone and its neighbours to know how to handle the flood request
 
             // a. Check if the drone has already received the flood request
-            let flood_request_is_already_received: bool = self.get_seen_flood_ids()
+            let flood_request_is_already_received: bool = self
+                .get_seen_flood_ids()
                 .iter()
                 .any(|id| *id == flood_request.flood_id);
 
@@ -170,7 +173,7 @@ pub trait NetworkNode {
                 // } else if flood_request_is_already_received {
                 //     eprintln!("[NODE {}] has already received flood request -> Creating flood response. flood_id: {} hops: {:?}", self.get_id(), flood_request.flood_id, flood_response_packet.routing_header.hops);
                 // }
-                
+
                 self.forward_packet(flood_response_packet);
             } else {
                 // The packet should be broadcast
@@ -270,15 +273,14 @@ pub trait NetworkNode {
                 self.get_id(),
                 &format!(
                     "Error! The current node {} has no neighbour node {}.",
-                    self.get_id(), id
+                    self.get_id(),
+                    id
                 ),
             );
             return;
         }
         self.get_packet_send().remove(&id);
     }
-
-
 }
 
 /// Helper function for consistent status logging
@@ -320,11 +322,14 @@ mod tests {
         fn get_random_generator(&mut self) -> &mut StdRng {
             &mut self.rng
         }
-        
-        fn handle_routed_packet(&mut self, packet: Packet) {
-            todo!()
+
+        fn handle_routed_packet(&mut self, _packet: Packet) {
+            unimplemented!()
         }
-        
+
+        fn handle_command(&mut self, _command: Command) {
+            unimplemented!()
+        }
     }
 
     impl TestNode {
