@@ -47,9 +47,9 @@ pub trait NetworkNode {
 
     fn handle_command(&mut self, command: Command);
 
-    fn handle_packet(&mut self, packet: Packet) {
+    fn handle_packet(&mut self, packet: Packet, node_type: NodeType) {
         match packet.pack_type {
-            PacketType::FloodRequest(_) => self.handle_flood_request(packet, NodeType::Drone),
+            PacketType::FloodRequest(_) => self.handle_flood_request(packet, node_type),
             _ => self.handle_routed_packet(packet),
         }
     }
