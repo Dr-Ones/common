@@ -50,9 +50,9 @@ pub trait NetworkNode {
 
     fn handle_command(&mut self, command: Command);
 
-    fn handle_packet(&mut self, packet: Packet) {
+    fn handle_packet(&mut self, packet: Packet, node_type: NodeType) {
         match packet.pack_type {
-            PacketType::FloodRequest(_) => self.handle_flood_request(packet, NodeType::Drone),
+            PacketType::FloodRequest(_) => self.handle_flood_request(packet, node_type),
             _ => self.handle_routed_packet(packet),
         }
     }
@@ -178,6 +178,7 @@ pub trait NetworkNode {
                 // }
 
                 self.forward_packet(flood_response_packet);
+
             } else {
                 // The packet should be broadcast
                 // eprintln!("Drone id: {} -> flood_request with path_trace: {:?} broadcasted to peers: {:?}", self.id, flood_request.path_trace, self.packet_send.keys());
