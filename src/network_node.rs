@@ -13,10 +13,13 @@ use wg_2024::{
 pub enum ClientCommand {
     GetFilesList,
     SendPacket(Packet),
+    RemoveSender(NodeId),
+    AddSender(NodeId, Sender<Packet>),
 }
 
 pub enum ServerCommand {
-    ChangeThisCommand,
+    RemoveSender(NodeId),
+    AddSender(NodeId, Sender<Packet>),
 }
 
 pub enum Command {
