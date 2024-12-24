@@ -175,6 +175,7 @@ pub trait NetworkNode {
                 // }
 
                 self.forward_packet(flood_response_packet);
+
             } else {
                 // The packet should be broadcast
                 // eprintln!("Drone id: {} -> flood_request with path_trace: {:?} broadcasted to peers: {:?}", self.id, flood_request.path_trace, self.packet_send.keys());
