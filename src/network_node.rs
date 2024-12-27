@@ -10,8 +10,18 @@ use wg_2024::{
     packet::{Ack, Nack, NackType, NodeType, Packet, PacketType},
 };
 
+
+#[derive(Clone)]
+#[derive(Debug)]
+pub enum ServerType{
+    Text,
+    Media,
+    Communication,
+    Undefined,
+}
+
 pub enum ClientCommand {
-    GetFilesList,
+    GetFilesList(NodeId),
     SendPacket(Packet),
     RemoveSender(NodeId),
     AddSender(NodeId, Sender<Packet>),
@@ -20,6 +30,7 @@ pub enum ClientCommand {
 pub enum ServerCommand {
     RemoveSender(NodeId),
     AddSender(NodeId, Sender<Packet>),
+    SetServerType(ServerType),
 }
 
 pub enum Command {
@@ -256,9 +267,7 @@ pub trait NetworkNode {
         hops_vec.reverse();
 
         let route_back: SourceRoutingHeader = SourceRoutingHeader {
-            //THE SOURCEROUTINGHEADER SAYS THAT THE HOP INDEX SHOULD BE INITIALIZED AS 1, BUT
-            //KEEP IN MIND THAT IN THIS WAY THE NODE THAT RECEIVES THIS PACKET WILL SEE ITSELF IN THE PATH_TRACE[HOP_INDEX]
-            hop_index: 1, // Start from the first hop
+            hop_index: 0, // Start from the first hop
             hops: hops_vec,
         };
 
