@@ -1,6 +1,7 @@
 //! Network utilities module.
 //! Provides common functionality for network nodes (drones, clients, and servers).
 
+use serde::{Deserialize, Serialize};
 use crossbeam_channel::{Receiver, Sender};
 use rand::{rngs::StdRng, Rng};
 use std::collections::{HashMap, HashSet};
@@ -10,9 +11,7 @@ use wg_2024::{
     packet::{Ack, Nack, NackType, NodeType, Packet, PacketType},
 };
 
-
-#[derive(Clone)]
-#[derive(Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ServerType{
     Text,
     Media,
@@ -20,8 +19,24 @@ pub enum ServerType{
     Undefined,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub enum SerializableMessage {
+    // For all the variants, the first argument is the sender
+    Default,
+    ServerTypeRequest(NodeId), // argument is the message sender: the client
+    ServerTypeResponse(NodeId, ServerType), // arguments are: the sender (server) and the server type
+    FilesListRequest(NodeId), // argument is the message sender: the client
+    FilesListResponse(NodeId, Vec<String>), // arguments are: the sender (server) and the list of files
+}
+impl Default for SerializableMessage {
+    fn default() -> Self {
+        SerializableMessage::Default
+    }
+}
+
 pub enum ClientCommand {
-    GetFilesList(NodeId),
+    ServerTypeRequest(NodeId), // argument is the server we want to get the type of
+    FilesListRequest(NodeId), // argument is the server we want to get the files list from
     SendPacket(Packet),
     RemoveSender(NodeId),
     AddSender(NodeId, Sender<Packet>),
