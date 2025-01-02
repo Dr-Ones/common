@@ -23,10 +23,13 @@ pub enum ServerType{
 pub enum SerializableMessage {
     // For all the variants, the first argument is the sender
     Default,
-    ServerTypeRequest(NodeId), // argument is the message sender: the client
-    ServerTypeResponse(NodeId, ServerType), // arguments are: the sender (server) and the server type
-    FilesListRequest(NodeId), // argument is the message sender: the client
-    FilesListResponse(NodeId, Vec<String>), // arguments are: the sender (server) and the list of files
+    ServerTypeRequest(NodeId), // argument is the sender id (client)
+    ServerTypeResponse(NodeId, ServerType), // arguments are: the sender id (server) and the server type
+    FilesListRequest(NodeId), // argument is the sender id: the client
+    FilesListResponse(NodeId, Vec<String>), // arguments are: the sender id (server) and the list of files
+    FileRequest(NodeId, String), // argument are: the sender id (client) and the name of the requested file
+    FileResponse(NodeId, String), // argument are: the sender id (server) and the name of the requested file
+    FileNotFound(NodeId, String), // argument are: the sender id (server) and the invalid file name
 }
 impl Default for SerializableMessage {
     fn default() -> Self {
@@ -35,8 +38,9 @@ impl Default for SerializableMessage {
 }
 
 pub enum ClientCommand {
-    ServerTypeRequest(NodeId), // argument is the server we want to get the type of
-    FilesListRequest(NodeId), // argument is the server we want to get the files list from
+    ServerTypeRequest(NodeId),   // argument is the id of the server we want to get the type of
+    FilesListRequest(NodeId),    // argument is the id of the server we want to get the files list from
+    FileRequest(NodeId, String), // arguments are the id of the server we want to get the file from and the name of the requested file
     SendPacket(Packet),
     RemoveSender(NodeId),
     AddSender(NodeId, Sender<Packet>),
