@@ -1,9 +1,9 @@
 //! Network utilities module.
 //! Provides common functionality for network nodes (drones, clients, and servers).
 
-use serde::{Deserialize, Serialize};
 use crossbeam_channel::{Receiver, Sender};
 use rand::{rngs::StdRng, Rng};
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use wg_2024::{
     controller::DroneCommand,
@@ -12,7 +12,7 @@ use wg_2024::{
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum ServerType{
+pub enum ServerType {
     Text,
     Media,
     Communication,
@@ -25,7 +25,7 @@ pub enum SerializableMessage {
     Default,
     ServerTypeRequest(NodeId), // argument is the sender id (client)
     ServerTypeResponse(NodeId, ServerType), // arguments are: the sender id (server) and the server type
-    FilesListRequest(NodeId), // argument is the sender id: the client
+    FilesListRequest(NodeId),               // argument is the sender id: the client
     FilesListResponse(NodeId, Vec<String>), // arguments are: the sender id (server) and the list of files
     FileRequest(NodeId, String), // argument are: the sender id (client) and the name of the requested file
     FileResponse(NodeId, String), // argument are: the sender id (server) and the name of the requested file
@@ -38,8 +38,8 @@ impl Default for SerializableMessage {
 }
 
 pub enum ClientCommand {
-    ServerTypeRequest(NodeId),   // argument is the id of the server we want to get the type of
-    FilesListRequest(NodeId),    // argument is the id of the server we want to get the files list from
+    ServerTypeRequest(NodeId), // argument is the id of the server we want to get the type of
+    FilesListRequest(NodeId), // argument is the id of the server we want to get the files list from
     FileRequest(NodeId, String), // arguments are the id of the server we want to get the file from and the name of the requested file
     SendPacket(Packet),
     RemoveSender(NodeId),
@@ -65,6 +65,11 @@ pub trait NetworkNode {
     /// Returns the unique identifier of this network node.
     fn get_id(&self) -> NodeId;
 
+    /// Returns value of the crash_behavior attribute.
+    fn get_crashing_behavior(&self) -> bool {
+        return false;
+    }
+
     fn get_seen_flood_ids(&mut self) -> &mut HashSet<u64>;
 
     /// Returns a reference to the map of packet senders for connected nodes.
@@ -76,13 +81,24 @@ pub trait NetworkNode {
     /// Returns a mutable reference to the random number generator.
     fn get_random_generator(&mut self) -> &mut StdRng;
 
-    fn handle_routed_packet(&mut self, packet: Packet);
+    fn handle_routed_packet(&mut self, packet: Packet) -> bool;
 
     fn handle_command(&mut self, command: Command);
 
-    fn handle_packet(&mut self, packet: Packet, node_type: NodeType) {
+    fn handle_packet(&mut self, packet: Packet, node_type: NodeType) -> bool {
+        println!("");
+        println!("");
+        println!("Handling packet in node {}", self.get_id());
+        println!("");
+        println!("");
         match packet.pack_type {
-            PacketType::FloodRequest(_) => self.handle_flood_request(packet, node_type),
+            PacketType::FloodRequest(_) => {
+                if self.get_crashing_behavior() {
+                    true;
+                }
+                self.handle_flood_request(packet, node_type);
+                false
+            }
             _ => self.handle_routed_packet(packet),
         }
     }
@@ -208,7 +224,6 @@ pub trait NetworkNode {
                 // }
 
                 self.forward_packet(flood_response_packet);
-
             } else {
                 // The packet should be broadcast
                 // eprintln!("Drone id: {} -> flood_request with path_trace: {:?} broadcasted to peers: {:?}", self.id, flood_request.path_trace, self.packet_send.keys());
@@ -280,13 +295,13 @@ pub trait NetworkNode {
         let mut hops_vec: Vec<NodeId> = packet.routing_header.hops.clone();
 
         // remove the nodes that are not supposed to receive the packet anymore (between self and the original final destination of the packet)
-        hops_vec.drain(packet.routing_header.hop_index..=hops_vec.len() - 1);
+        hops_vec.drain(packet.routing_header.hop_index + 1..=hops_vec.len() - 1);
 
         // reverse the order of the nodes to reach in comparison with the original routing header
         hops_vec.reverse();
 
         let route_back: SourceRoutingHeader = SourceRoutingHeader {
-            hop_index: 0, // Start from the first hop
+            hop_index: 1, // Start from the first hop
             hops: hops_vec,
         };
 
@@ -319,7 +334,6 @@ pub trait NetworkNode {
 pub fn log_status(node_id: NodeId, message: &str) {
     println!("[NODE {}] {}", node_id, message);
 }
-
 
 // ------------------------------------------------------------------------------------------------------
 // ----------------------------------- TESTS ------------------------------------------------------------
@@ -360,7 +374,7 @@ mod tests {
             &mut self.rng
         }
 
-        fn handle_routed_packet(&mut self, _packet: Packet) {
+        fn handle_routed_packet(&mut self, _packet: Packet) -> bool {
             unimplemented!()
         }
 
