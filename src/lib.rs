@@ -3,5 +3,8 @@
 //! This crate provides shared functionality used by the drone, client,
 //! and server components of the network simulator.
 
+mod logging;
 mod network_node;
+
+pub use logging::*;
 pub use network_node::*;
