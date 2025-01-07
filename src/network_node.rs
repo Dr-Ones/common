@@ -86,11 +86,6 @@ pub trait NetworkNode {
     fn handle_command(&mut self, command: Command);
 
     fn handle_packet(&mut self, packet: Packet, node_type: NodeType) -> bool {
-        println!("");
-        println!("");
-        println!("Handling packet in node {}", self.get_id());
-        println!("");
-        println!("");
         match packet.pack_type {
             PacketType::FloodRequest(_) => {
                 if self.get_crashing_behavior() {
