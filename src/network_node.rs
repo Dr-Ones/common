@@ -11,6 +11,8 @@ use wg_2024::{
     packet::{Ack, Nack, NackType, NodeType, Packet, PacketType},
 };
 
+use crate::{log_error, log_status};
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ServerType {
     Text,
@@ -112,9 +114,10 @@ pub trait NetworkNode {
         if let Some(sender) = self.get_packet_send().get(&next_hop_id) {
             sender.send(packet).expect("Failed to forward the packet");
         } else {
-            log_status(
+            log_status!(
                 self.get_id(),
-                &format!("No channel found for next hop: {:?}", next_hop_id),
+                "No channel found for next hop: {:?}",
+                next_hop_id
             );
         }
     }
@@ -311,23 +314,16 @@ pub trait NetworkNode {
 
     fn remove_channel(&mut self, id: NodeId) {
         if !self.get_packet_send().contains_key(&id) {
-            log_status(
+            log_error!(
                 self.get_id(),
-                &format!(
-                    "Error! The current node {} has no neighbour node {}.",
-                    self.get_id(),
-                    id
-                ),
+                "Error! The current node {} has no neighbour node {}.",
+                self.get_id(),
+                id
             );
             return;
         }
         self.get_packet_send().remove(&id);
     }
-}
-
-/// Helper function for consistent status logging
-pub fn log_status(node_id: NodeId, message: &str) {
-    println!("[NODE {}] {}", node_id, message);
 }
 
 // ------------------------------------------------------------------------------------------------------
