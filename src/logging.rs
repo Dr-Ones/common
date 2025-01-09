@@ -18,7 +18,7 @@ pub fn is_logging_enabled() -> bool {
 #[macro_export]
 macro_rules! log_status {
     ($node_id:expr, $($arg:tt)*) => {
-        if crate::logging::is_logging_enabled() {
+        if $crate::logging::is_logging_enabled() {
             println!("[NODE {}] {}", $node_id, format!($($arg)*));
         }
     };
@@ -27,7 +27,7 @@ macro_rules! log_status {
 #[macro_export]
 macro_rules! log_error {
     ($node_id:expr, $($arg:tt)*) => {
-        if crate::logging::is_logging_enabled() {
+        if $crate::logging::is_logging_enabled() {
             eprintln!("[NODE {}] Error: {}", $node_id, format!($($arg)*));
         }
     };

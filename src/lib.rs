@@ -6,5 +6,5 @@
 pub mod logging;
 mod network_node;
 
-pub use logging::{disable_logging, enable_logging};
+pub use logging::{disable_logging, enable_logging, is_logging_enabled};
 pub use network_node::*;
