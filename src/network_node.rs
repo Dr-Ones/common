@@ -11,6 +11,8 @@ use wg_2024::{
     packet::{Ack, Nack, NackType, NodeType, Packet, PacketType},
 };
 
+use crate::{log_error, log_status};
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ServerType {
     Content,
@@ -22,13 +24,16 @@ pub enum ServerType {
 pub enum SerializableMessage {
     // For all the variants, the first argument is the sender
     Default,
-    ServerTypeRequest(NodeId), // argument is the sender id (client)
+    ServerTypeRequest(NodeId),              // argument is the sender id (client)
     ServerTypeResponse(NodeId, ServerType), // arguments are: the sender id (server) and the server type
-    FilesListRequest(NodeId),               // argument is the sender id: the client
+    FilesListRequest(NodeId),               // argument is the sender id (client)
     FilesListResponse(NodeId, Vec<String>), // arguments are: the sender id (server) and the list of files
-    FileRequest(NodeId, String), // argument are: the sender id (client) and the name of the requested file
-    FileResponse(NodeId, String, String), // argument are: the sender id (server), the name of the requested file and the file
-    FileNotFound(NodeId, String), // argument are: the sender id (server) and the invalid file name
+    FileRequest(NodeId, String),            // argument are: the sender id (client) and the name of the requested file
+    FileResponse(NodeId, String),           // argument are: the sender id (server) and the name of the requested file
+    FileNotFound(NodeId, String),           // argument are: the sender id (server) and the invalid file name
+    RegisterToChatServer(NodeId),           // argument is the sender id (client)
+    RegisterSuccess(NodeId),                // argument is the sender id (server)
+    //TODO Add an error message with the sender and the issue e.g. ErrorMessage(NodeId, String)
 }
 impl Default for SerializableMessage {
     fn default() -> Self {
@@ -40,6 +45,7 @@ pub enum ClientCommand {
     ServerTypeRequest(NodeId), // argument is the id of the server we want to get the type of
     FilesListRequest(NodeId), // argument is the id of the server we want to get the files list from
     FileRequest(NodeId, String), // arguments are the id of the server we want to get the file from and the name of the requested file
+    RegisterToChatServer(NodeId), // argument is the id of the chat server we want to register to
     SendPacket(Packet),
     RemoveSender(NodeId),
     AddSender(NodeId, Sender<Packet>),
@@ -111,9 +117,10 @@ pub trait NetworkNode {
         if let Some(sender) = self.get_packet_send().get(&next_hop_id) {
             sender.send(packet).expect("Failed to forward the packet");
         } else {
-            log_status(
+            log_status!(
                 self.get_id(),
-                &format!("No channel found for next hop: {:?}", next_hop_id),
+                "No channel found for next hop: {:?}",
+                next_hop_id
             );
         }
     }
@@ -310,23 +317,16 @@ pub trait NetworkNode {
 
     fn remove_channel(&mut self, id: NodeId) {
         if !self.get_packet_send().contains_key(&id) {
-            log_status(
+            log_error!(
                 self.get_id(),
-                &format!(
-                    "Error! The current node {} has no neighbour node {}.",
-                    self.get_id(),
-                    id
-                ),
+                "Error! The current node {} has no neighbour node {}.",
+                self.get_id(),
+                id
             );
             return;
         }
         self.get_packet_send().remove(&id);
     }
-}
-
-/// Helper function for consistent status logging
-pub fn log_status(node_id: NodeId, message: &str) {
-    println!("[NODE {}] {}", node_id, message);
 }
 
 // ------------------------------------------------------------------------------------------------------
