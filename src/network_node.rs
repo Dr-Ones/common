@@ -29,7 +29,7 @@ pub enum SerializableMessage {
     FilesListRequest(NodeId),               // argument is the sender id (client)
     FilesListResponse(NodeId, Vec<String>), // arguments are: the sender id (server) and the list of files
     FileRequest(NodeId, String),            // argument are: the sender id (client) and the name of the requested file
-    FileResponse(NodeId, String),           // argument are: the sender id (server) and the name of the requested file
+    FileResponse(NodeId, String, String),   // argument are: the sender id (server), the filename and the file
     FileNotFound(NodeId, String),           // argument are: the sender id (server) and the invalid file name
     RegisterToChatServer(NodeId),           // argument is the sender id (client)
     RegisterSuccess(NodeId),                // argument is the sender id (server)
