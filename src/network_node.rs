@@ -26,14 +26,15 @@ pub enum SerializableMessage {
     Default,
     ServerTypeRequest(NodeId),              // argument is the sender id (client)
     ServerTypeResponse(NodeId, ServerType), // arguments are: the sender id (server) and the server type
-    FilesListRequest(NodeId),               // argument is the sender id (client)
-    FilesListResponse(NodeId, Vec<String>), // arguments are: the sender id (server) and the list of files
+    FileListRequest(NodeId),                // argument is the sender id (client)
+    FileListResponse(NodeId, Vec<String>),  // arguments are: the sender id (server) and the list of files
     FileRequest(NodeId, String),            // argument are: the sender id (client) and the name of the requested file
-    FileResponse(NodeId, String, String),   // argument are: the sender id (server), the filename and the file
-    FileNotFound(NodeId, String),           // argument are: the sender id (server) and the invalid file name
-    RegisterToChatServer(NodeId),           // argument is the sender id (client)
+    FileFound(NodeId, String, String),      // argument are: the sender id (server), the filename and the file
+    RegisterToCommunicationServer(NodeId),  // argument is the sender id (client)
     RegisterSuccess(NodeId),                // argument is the sender id (server)
-    //TODO Add an error message with the sender and the issue e.g. ErrorMessage(NodeId, String)
+    ClientListRequest(NodeId),              // argument is the sender id (client)
+    ClientListResponse(NodeId, Vec<NodeId>),// arguments are: the sender id (server) and the list of clients
+    ErrorMessage(NodeId, String),           // argument are: the sender id (server) and the error message
 }
 impl Default for SerializableMessage {
     fn default() -> Self {
@@ -42,10 +43,11 @@ impl Default for SerializableMessage {
 }
 
 pub enum ClientCommand {
-    ServerTypeRequest(NodeId), // argument is the id of the server we want to get the type of
-    FilesListRequest(NodeId), // argument is the id of the server we want to get the files list from
-    FileRequest(NodeId, String), // arguments are the id of the server we want to get the file from and the name of the requested file
-    RegisterToChatServer(NodeId), // argument is the id of the chat server we want to register to
+    ServerTypeRequest(NodeId),             // argument is the id of the server we want to get the type of
+    FileListRequest(NodeId),               // argument is the id of the server we want to get the file list from
+    FileRequest(NodeId, String),           // arguments are the id of the server we want to get the file from and the name of the requested file
+    RegisterToCommunicationServer(NodeId), // argument is the id of the communication server we want to register to
+    ClientListRequest(NodeId),             // argument is the id of the server we want to get the client list from
     SendPacket(Packet),
     RemoveSender(NodeId),
     AddSender(NodeId, Sender<Packet>),
