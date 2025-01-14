@@ -13,8 +13,7 @@ use wg_2024::{
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ServerType {
-    Text,
-    Media,
+    Content,
     Communication,
     Undefined,
 }
@@ -28,7 +27,7 @@ pub enum SerializableMessage {
     FilesListRequest(NodeId),               // argument is the sender id: the client
     FilesListResponse(NodeId, Vec<String>), // arguments are: the sender id (server) and the list of files
     FileRequest(NodeId, String), // argument are: the sender id (client) and the name of the requested file
-    FileResponse(NodeId, String), // argument are: the sender id (server) and the name of the requested file
+    FileResponse(NodeId, String, String), // argument are: the sender id (server), the name of the requested file and the file
     FileNotFound(NodeId, String), // argument are: the sender id (server) and the invalid file name
 }
 impl Default for SerializableMessage {
