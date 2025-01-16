@@ -34,6 +34,7 @@ pub enum SerializableMessage {
     RegisterSuccess(NodeId),                // argument is the sender id (server)
     ClientListRequest(NodeId),              // argument is the sender id (client)
     ClientListResponse(NodeId, Vec<NodeId>),// arguments are: the sender id (server) and the list of clients
+    Chat(NodeId, NodeId, NodeId, String),   // arguments are: the sender id (client), the id of server the chat is sent on, the recipient client id and the chat text message
     ErrorMessage(NodeId, String),           // argument are: the sender id (server) and the error message
 }
 impl Default for SerializableMessage {
@@ -47,6 +48,7 @@ pub enum ClientCommand {
     FileListRequest(NodeId),               // argument is the id of the server we want to get the file list from
     FileRequest(NodeId, String),           // arguments are the id of the server we want to get the file from and the name of the requested file
     RegisterToCommunicationServer(NodeId), // argument is the id of the communication server we want to register to
+    Chat(NodeId, NodeId, String),          // argument are the id of the communication server we want to chat on, the id of the recipient client and the message to send
     ClientListRequest(NodeId),             // argument is the id of the server we want to get the client list from
     SendPacket(Packet),
     RemoveSender(NodeId),
