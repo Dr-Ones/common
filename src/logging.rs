@@ -1,7 +1,8 @@
 use once_cell::sync::Lazy;
 use std::sync::Mutex;
 
-static LOGGING_ENABLED: Lazy<Mutex<bool>> = Lazy::new(|| Mutex::new(true));
+const INITIAL_LOG_STATE: bool = !cfg!(feature = "disable_log_by_default");
+static LOGGING_ENABLED: Lazy<Mutex<bool>> = Lazy::new(|| Mutex::new(INITIAL_LOG_STATE));
 
 pub fn enable_logging() {
     *LOGGING_ENABLED.lock().unwrap() = true;
