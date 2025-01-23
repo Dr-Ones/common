@@ -45,6 +45,7 @@ impl Default for SerializableMessage {
 
 pub enum ClientCommand {
     ServerTypeRequest(NodeId),             // argument is the id of the server we want to get the type of
+    AllServerTypesRequest(),
     FileListRequest(NodeId),               // argument is the id of the server we want to get the file list from
     FileRequest(NodeId, String),           // arguments are the id of the server we want to get the file from and the name of the requested file
     RegisterToCommunicationServer(NodeId), // argument is the id of the communication server we want to register to
