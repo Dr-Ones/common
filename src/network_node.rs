@@ -81,7 +81,7 @@ pub trait NetworkNode {
         return false;
     }
 
-    fn get_seen_flood_ids(&mut self) -> &mut HashSet<u64>;
+    fn get_seen_flood_ids(&mut self) -> &mut HashSet<String>;
 
     /// Returns a reference to the map of packet senders for connected nodes.
     fn get_packet_send(&mut self) -> &mut HashMap<NodeId, Sender<Packet>>;
@@ -215,7 +215,9 @@ pub trait NetworkNode {
             let flood_request_is_already_received: bool = self
                 .get_seen_flood_ids()
                 .iter()
-                .any(|id| *id == flood_request.flood_id);
+                .any(|id| *id == (
+                    who_sent_me_this_flood_request.to_string() + "_" + flood_request.flood_id.to_string().as_str()
+                ));
 
             // b. Check if the drone has a neighbour, excluding the one from which it received the flood request
 
@@ -244,7 +246,9 @@ pub trait NetworkNode {
             } else {
                 // The packet should be broadcast
                 // eprintln!("Drone id: {} -> flood_request with path_trace: {:?} broadcasted to peers: {:?}", self.id, flood_request.path_trace, self.packet_send.keys());
-                self.get_seen_flood_ids().insert(flood_request.flood_id);
+                self.get_seen_flood_ids().insert(
+                    who_sent_me_this_flood_request.to_string() + "_" + flood_request.flood_id.to_string().as_str()
+                );
 
                 // Create the new packet with the updated flood_request
                 let updated_packet = Packet {
@@ -367,7 +371,7 @@ mod tests {
 
     struct TestNode {
         id: NodeId,
-        seen_flood_ids: HashSet<u64>,
+        seen_flood_ids: HashSet<String>,
         senders: HashMap<NodeId, Sender<Packet>>,
         receiver: Receiver<Packet>,
         rng: StdRng,
@@ -378,7 +382,7 @@ mod tests {
             self.id
         }
 
-        fn get_seen_flood_ids(&mut self) -> &mut HashSet<u64> {
+        fn get_seen_flood_ids(&mut self) -> &mut HashSet<String> {
             &mut self.seen_flood_ids
         }
 
