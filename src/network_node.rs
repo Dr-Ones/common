@@ -6,7 +6,7 @@ use rand::{rngs::StdRng, Rng};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use wg_2024::{
-    controller::DroneCommand,
+    controller::{DroneCommand, DroneEvent},
     network::{NodeId, SourceRoutingHeader},
     packet::{Ack, Nack, NackType, NodeType, Packet, PacketType},
 };
@@ -91,6 +91,9 @@ pub trait NetworkNode {
     /// Returns a mutable reference to the random number generator.
     fn get_random_generator(&mut self) -> &mut StdRng;
 
+    /// Returns a reference to the sender channel for the simulation controller.
+    fn get_sim_contr_send(&self) -> &Sender<DroneEvent>;
+
     fn handle_routed_packet(&mut self, packet: Packet) -> bool;
 
     fn handle_command(&mut self, command: Command);
@@ -119,7 +122,21 @@ pub trait NetworkNode {
     fn forward_packet(&mut self, packet: Packet) {
         let next_hop_id = packet.routing_header.hops[packet.routing_header.hop_index];
 
-        if let Some(sender) = self.get_packet_send().get(&next_hop_id) {
+        println!(
+            "DEBUG forward_packet: id={}, hops={:?}, hop_index={}",
+            self.get_id(),
+            packet.routing_header.hops,
+            packet.routing_header.hop_index
+        );
+
+        if let Some(sender) = self.get_packet_send().clone().get(&next_hop_id) {
+            // Send PacketSent event before forwarding
+            if let Err(e) = self
+                .get_sim_contr_send()
+                .send(DroneEvent::PacketSent(packet.clone()))
+            {
+                log_error!(self.get_id(), "Failed to send PacketSent event: {:?}", e);
+            }
             sender.send(packet).expect("Failed to forward the packet");
         } else {
             log_status!(
@@ -290,6 +307,12 @@ pub trait NetworkNode {
         // iterate on the neighbours list
         for (&node_id, sender) in neighbours.iter() {
             // Send a clone packet
+            if let Err(e) = self
+                .get_sim_contr_send()
+                .send(DroneEvent::PacketSent(packet.clone()))
+            {
+                log_error!(self.get_id(), "Failed to send PacketSent event: {:?}", e);
+            }
             if let Err(e) = sender.send(packet.clone()) {
                 println!("Failed to send packet to NodeId {:?}: {:?}", node_id, e);
             }
@@ -371,6 +394,10 @@ mod tests {
 
         fn get_random_generator(&mut self) -> &mut StdRng {
             &mut self.rng
+        }
+
+        fn get_sim_contr_send(&self) -> &Sender<DroneEvent> {
+            unimplemented!()
         }
 
         fn handle_routed_packet(&mut self, _packet: Packet) -> bool {
