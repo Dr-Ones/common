@@ -37,6 +37,7 @@ pub enum SerializableMessage {
     Chat(NodeId, NodeId, NodeId, String),   // arguments are: the sender id (client), the id of server the chat is sent on, the recipient client id and the chat text message
     ErrorMessage(NodeId, String),           // argument are: the sender id (server) and the error message
 }
+
 impl Default for SerializableMessage {
     fn default() -> Self {
         SerializableMessage::Default
@@ -121,13 +122,6 @@ pub trait NetworkNode {
     /// * If sending the packet fails
     fn forward_packet(&mut self, packet: Packet) {
         let next_hop_id = packet.routing_header.hops[packet.routing_header.hop_index];
-
-        println!(
-            "DEBUG forward_packet: id={}, hops={:?}, hop_index={}",
-            self.get_id(),
-            packet.routing_header.hops,
-            packet.routing_header.hop_index
-        );
 
         if let Some(sender) = self.get_packet_send().clone().get(&next_hop_id) {
             // Send PacketSent event before forwarding
@@ -258,7 +252,6 @@ pub trait NetworkNode {
                     routing_header: packet.routing_header,
                     session_id: packet.session_id,
                 };
-
                 // Broadcast the updated packet
                 self.broadcast_packet(updated_packet, who_sent_me_this_flood_request);
             }
@@ -306,14 +299,19 @@ pub trait NetworkNode {
 
         // iterate on the neighbours list
         for (&node_id, sender) in neighbours.iter() {
+            let mut packet_to_send = packet.clone();
+            packet_to_send.routing_header = SourceRoutingHeader {
+                hop_index: 1,
+                hops: vec![self.get_id(), node_id]
+            };
             // Send a clone packet
             if let Err(e) = self
                 .get_sim_contr_send()
-                .send(DroneEvent::PacketSent(packet.clone()))
+                .send(DroneEvent::PacketSent(packet_to_send.clone()))
             {
                 log_error!(self.get_id(), "Failed to send PacketSent event: {:?}", e);
             }
-            if let Err(e) = sender.send(packet.clone()) {
+            if let Err(e) = sender.send(packet_to_send) {
                 println!("Failed to send packet to NodeId {:?}: {:?}", node_id, e);
             }
         }
