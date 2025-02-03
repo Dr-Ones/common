@@ -216,7 +216,7 @@ pub trait NetworkNode {
                 .get_seen_flood_ids()
                 .iter()
                 .any(|id| *id == (
-                    who_sent_me_this_flood_request.to_string() + "_" + flood_request.flood_id.to_string().as_str()
+                    flood_request.initiator_id.to_string() + "_" + flood_request.flood_id.to_string().as_str()
                 ));
 
             // b. Check if the drone has a neighbour, excluding the one from which it received the flood request
@@ -247,7 +247,7 @@ pub trait NetworkNode {
                 // The packet should be broadcast
                 // eprintln!("Drone id: {} -> flood_request with path_trace: {:?} broadcasted to peers: {:?}", self.id, flood_request.path_trace, self.packet_send.keys());
                 self.get_seen_flood_ids().insert(
-                    who_sent_me_this_flood_request.to_string() + "_" + flood_request.flood_id.to_string().as_str()
+                    flood_request.initiator_id.to_string() + "_" + flood_request.flood_id.to_string().as_str()
                 );
 
                 // Create the new packet with the updated flood_request
