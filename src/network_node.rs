@@ -284,7 +284,7 @@ pub trait NetworkNode {
                     path_trace,
                 }),
                 routing_header: new_routing_header,
-                session_id: self.get_random_generator().gen(),
+                session_id: flood_request.flood_id
             }
         } else {
             panic!("Error! Attempt to build flood response from non-flood request packet");
