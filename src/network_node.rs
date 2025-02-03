@@ -20,7 +20,7 @@ pub enum ServerType {
     Undefined,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum SerializableMessage {
     // For all the variants, the first argument is the sender
     Default,
