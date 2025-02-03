@@ -2,7 +2,7 @@
 //! Provides common functionality for network nodes (drones, clients, and servers).
 
 use crossbeam_channel::{Receiver, Sender};
-use rand::{rngs::StdRng, Rng};
+use rand::rngs::StdRng;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use wg_2024::{
