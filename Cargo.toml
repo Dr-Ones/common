@@ -12,3 +12,4 @@ wg_2024 = { git = "https://github.com/WGL-2024/WGL_repo_2024.git", features = [
     "debug",
 ] }
 once_cell = "1.19.0"
+chrono = "0.4"
