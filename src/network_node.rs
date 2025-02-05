@@ -197,13 +197,6 @@ pub trait NetworkNode {
     fn handle_flood_request(&mut self, packet: Packet, node_type: NodeType) {
         // Check if the flood request should be broadcast or turned into a flood response and sent back
         if let PacketType::FloodRequest(mut flood_request) = packet.pack_type.clone() {
-            // // DEBUG
-            // eprintln!(
-            //     "[NODE {}] received flood request with path_trace: {:?}",
-            //     self.get_id(),
-            //     flood_request.path_trace
-            // );
-            // Take who sent this floodRequest (test and logpurposes)
             let who_sent_me_this_flood_request = flood_request.path_trace.last().unwrap().0;
 
             // Add self to the path trace
