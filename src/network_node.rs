@@ -197,7 +197,7 @@ pub trait NetworkNode {
     fn handle_flood_request(&mut self, packet: Packet, node_type: NodeType) {
         // Check if the flood request should be broadcast or turned into a flood response and sent back
         if let PacketType::FloodRequest(mut flood_request) = packet.pack_type.clone() {
-            let who_sent_me_this_flood_request = flood_request.path_trace.last().unwrap().0;
+            let who_sent_me_this_flood_request = flood_request.path_trace.last().expect("Failed to get the last node of the path").0;
             
             // Add self to the path trace
             flood_request.path_trace.push((self.get_id(), node_type));
@@ -446,11 +446,11 @@ mod tests {
         node.forward_packet(packet.clone());
         
         // Verify the packet was received
-        let received = receiver.try_recv().unwrap();
+        let received = receiver.try_recv().expect("Failed to receive packet");
         assert_eq!(received.session_id, 42);
         
         // Verify simulation event
-        let sim_event = sim_receiver.try_recv().unwrap();
+        let sim_event = sim_receiver.try_recv().expect("Failed to receive simulation controller event");
         match sim_event {
             DroneEvent::PacketSent(p) => assert_eq!(p.session_id, 42),
             _ => panic!("Expected PacketSent event"),
