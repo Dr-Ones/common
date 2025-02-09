@@ -39,6 +39,7 @@ pub enum SerializableMessage {
 }
 
 impl Default for SerializableMessage {
+    /// Returns the default variant of `SerializableMessage`, which is `Default`.
     fn default() -> Self {
         SerializableMessage::Default
     }
@@ -73,32 +74,63 @@ pub enum Command {
 /// This trait provides basic network operations that all network nodes
 /// (drones, clients, and servers) need to implement.
 pub trait NetworkNode {
-    /// Returns the unique identifier of this network node.
+    /// Retrieves the unique identifier of this network node.
     fn get_id(&self) -> NodeId;
     
-    /// Returns value of the crash_behavior attribute.
+    /// Indicates whether the node is set to exhibit crashing behavior.
+    /// The default implementation returns `false`.
     fn get_crashing_behavior(&self) -> bool {
         return false;
     }
     
+    /// Provides a mutable reference to the set of flood request IDs that have already been seen.
+    /// This helps to avoid reprocessing duplicate flood requests.
     fn get_seen_flood_ids(&mut self) -> &mut HashSet<String>;
     
-    /// Returns a reference to the map of packet senders for connected nodes.
+    /// Returns a mutable reference to the mapping of node IDs to their sender channels.
+    /// This map represents the outgoing communication channels for this node.
     fn get_packet_send(&mut self) -> &mut HashMap<NodeId, Sender<Packet>>;
     
-    /// Returns a reference to the receiver channel for incoming packets.
+    /// Returns a reference to the channel used for receiving incoming packets.
     fn get_packet_receiver(&self) -> &Receiver<Packet>;
     
-    /// Returns a mutable reference to the random number generator.
+    /// Returns a mutable reference to the node's random number generator.
     fn get_random_generator(&mut self) -> &mut StdRng;
     
-    /// Returns a reference to the sender channel for the simulation controller.
+    /// Returns a reference to the simulation controller's sender channel for dispatching events.
     fn get_sim_contr_send(&self) -> &Sender<DroneEvent>;
     
+    /// Processes a routed packet arriving at this node.
+    ///
+    /// # Arguments
+    ///
+    /// * `packet` - The packet to be processed.
+    ///
+    /// # Returns
+    ///
+    /// A boolean indicating whether the packet was successfully handled.
     fn handle_routed_packet(&mut self, packet: Packet) -> bool;
     
+    /// Handles an incoming command directed to this node.
+    ///
+    /// # Arguments
+    ///
+    /// * `command` - The command to be executed.
     fn handle_command(&mut self, command: Command);
     
+    /// Determines how to process an incoming packet based on its type and the node type.
+    ///
+    /// For flood requests, it may trigger a flood response or broadcast the request further.
+    /// For all other packets, it delegates processing to `handle_routed_packet`.
+    ///
+    /// # Arguments
+    ///
+    /// * `packet` - The packet to be handled.
+    /// * `node_type` - The type of the node handling the packet.
+    ///
+    /// # Returns
+    ///
+    /// A boolean status resulting from the packet handling.
     fn handle_packet(&mut self, packet: Packet, node_type: NodeType) -> bool {
         match packet.pack_type {
             PacketType::FloodRequest(_) => {
@@ -112,22 +144,26 @@ pub trait NetworkNode {
         }
     }
     
-    /// Forwards a packet to the next hop in its routing path.
+    /// Forwards a packet to the next hop specified in the routing header.
+    ///
+    /// Before forwarding, a simulation event is sent. If the sender channel for the next hop
+    /// is not found, the event is logged.
     ///
     /// # Arguments
-    /// * `packet` - The packet to forward
+    ///
+    /// * `packet` - The packet to be forwarded.
     ///
     /// # Panics
-    /// * If the next hop's sender channel is not found
-    /// * If sending the packet fails
+    ///
+    /// Panics if sending the packet fails.
     fn forward_packet(&mut self, packet: Packet) {
         let next_hop_id = packet.routing_header.hops[packet.routing_header.hop_index];
         
         if let Some(sender) = self.get_packet_send().clone().get(&next_hop_id) {
             // Send PacketSent event before forwarding
             if let Err(e) = self
-            .get_sim_contr_send()
-            .send(DroneEvent::PacketSent(packet.clone()))
+                .get_sim_contr_send()
+                .send(DroneEvent::PacketSent(packet.clone()))
             {
                 log_error!(self.get_id(), "Failed to send PacketSent event: {:?}", e);
             }
@@ -141,6 +177,19 @@ pub trait NetworkNode {
         }
     }
     
+    /// Constructs a negative acknowledgement (Nack) packet in response to a given packet.
+    ///
+    /// The Nack includes the fragment index from the original packet (if applicable) and
+    /// reverses the packet's routing direction to send the Nack back.
+    ///
+    /// # Arguments
+    ///
+    /// * `packet` - The original packet prompting the Nack.
+    /// * `nack_type` - The type of Nack to be generated.
+    ///
+    /// # Returns
+    ///
+    /// A new packet representing the Nack.
     fn build_nack(&self, packet: Packet, nack_type: NackType) -> Packet {
         let fragment_index = match &packet.pack_type {
             PacketType::MsgFragment(fragment) => fragment.fragment_index,
@@ -162,6 +211,18 @@ pub trait NetworkNode {
         response
     }
     
+    /// Constructs an acknowledgement (Ack) packet corresponding to a message fragment packet.
+    ///
+    /// The function extracts the fragment index from the original packet, builds an Ack,
+    /// reverses the routing direction, and returns the new packet.
+    ///
+    /// # Arguments
+    ///
+    /// * `packet` - The original fragment packet to acknowledge.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the provided packet is not a fragment packet.
     fn build_ack(&self, packet: Packet) -> Packet {
         // 1. Keep in the ack the fragment index if the packet contains a fragment
         let frag_index: u64;
@@ -173,7 +234,7 @@ pub trait NetworkNode {
             panic!()
         }
         
-        // 2. Build the Aack instance of the packet to return
+        // 2. Build the Ack instance of the packet to return
         let ack: Ack = Ack {
             fragment_index: frag_index,
         };
@@ -187,13 +248,22 @@ pub trait NetworkNode {
             session_id: packet.session_id,
         };
         
-        // 4. Reverse the routing direction of the packet because nacks need to be sent back
+        // 4. Reverse the routing direction of the packet because acks need to be sent back
         self.reverse_packet_routing_direction(&mut packet);
         
         // 5. Return the packet
         packet
     }
     
+    /// Processes a flood request packet.
+    ///
+    /// Depending on whether the flood request has been seen before or if there are no other neighbours,
+    /// the function either builds a flood response or broadcasts the flood request to eligible neighbours.
+    ///
+    /// # Arguments
+    ///
+    /// * `packet` - The flood request packet to handle.
+    /// * `node_type` - The type of the node processing the request.
     fn handle_flood_request(&mut self, packet: Packet, node_type: NodeType) {
         // Check if the flood request should be broadcast or turned into a flood response and sent back
         if let PacketType::FloodRequest(mut flood_request) = packet.pack_type.clone() {
@@ -202,43 +272,35 @@ pub trait NetworkNode {
             // Add self to the path trace
             flood_request.path_trace.push((self.get_id(), node_type));
             
-            // 1. Process some tests on the drone and its neighbours to know how to handle the flood request
+            // 1. Process some tests on the node and its neighbours to know how to handle the flood request
             
-            // a. Check if the drone has already received the flood request
+            // a. Check if the node has already received the flood request
             let flood_request_is_already_received: bool = self
-            .get_seen_flood_ids()
-            .iter()
-            .any(|id| *id == (
-                flood_request.initiator_id.to_string() + "_" + flood_request.flood_id.to_string().as_str()
-            ));
+                .get_seen_flood_ids()
+                .iter()
+                .any(|id| *id == (
+                    flood_request.initiator_id.to_string() + "_" + flood_request.flood_id.to_string().as_str()
+                ));
             
-            // b. Check if the drone has a neighbour, excluding the one from which it received the flood request
+            // b. Check if the node has a neighbour, excluding the one from which it received the flood request
             
             // Check if the updated neighbours list is empty
             
-            // If I have only one neighbour, I must have received this message from it and i don't have anybody else to forward it to
+            // If I have only one neighbour, I must have received this message from it and I don't have anybody else to forward it to
             let has_no_neighbour: bool = self.get_packet_send().len() == 1;
             
             // 2. Check if the flood request should be sent back as a flood response or broadcasted as is
             if flood_request_is_already_received || has_no_neighbour {
                 // A flood response should be created and sent
                 
-                // a. Create a build response based on the build request
-                
+                // a. Create a built response based on the flood request
                 let flood_response_packet =
-                self.build_flood_response(packet, flood_request.path_trace);
+                    self.build_flood_response(packet, flood_request.path_trace);
                 
-                // // DEBUG
-                // if has_no_neighbour {
-                //     eprintln!("[NODE {}] has no neighbour -> Creating flood response. flood_id: {} hops: {:?}", self.get_id(), flood_request.flood_id, flood_response_packet.routing_header.hops);
-                // } else if flood_request_is_already_received {
-                //     eprintln!("[NODE {}] has already received flood request -> Creating flood response. flood_id: {} hops: {:?}", self.get_id(), flood_request.flood_id, flood_response_packet.routing_header.hops);
-                // }
-                
+                // Forward the flood response packet
                 self.forward_packet(flood_response_packet);
             } else {
                 // The packet should be broadcast
-                // eprintln!("Drone id: {} -> flood_request with path_trace: {:?} broadcasted to peers: {:?}", self.id, flood_request.path_trace, self.packet_send.keys());
                 self.get_seen_flood_ids().insert(
                     flood_request.initiator_id.to_string() + "_" + flood_request.flood_id.to_string().as_str()
                 );
@@ -257,6 +319,23 @@ pub trait NetworkNode {
         }
     }
     
+    /// Builds a flood response packet from a flood request packet and the provided path trace.
+    ///
+    /// The function reverses the path trace to generate a routing header that guides the
+    /// response back to the originator.
+    ///
+    /// # Arguments
+    ///
+    /// * `packet` - The original flood request packet.
+    /// * `path_trace` - A vector of tuples containing node IDs and their types that represent the path.
+    ///
+    /// # Returns
+    ///
+    /// A new packet representing the flood response.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the packet is not a flood request.
     fn build_flood_response(
         &mut self,
         packet: Packet,
@@ -264,7 +343,7 @@ pub trait NetworkNode {
     ) -> Packet {
         if let PacketType::FloodRequest(flood_request) = packet.pack_type {
             let mut route_back: Vec<NodeId> = path_trace.iter().map(|tuple| tuple.0).collect();
-            route_back.reverse(); // I don't know anything about this, but shouldn't we use reverse_packet_routing_direction?
+            route_back.reverse(); // Reverse the route for sending back the response
             
             let new_routing_header = SourceRoutingHeader {
                 hop_index: 1,
@@ -277,34 +356,42 @@ pub trait NetworkNode {
                     path_trace,
                 }),
                 routing_header: new_routing_header,
-                session_id: flood_request.flood_id
+                session_id: flood_request.flood_id,
             }
         } else {
             panic!("Error! Attempt to build flood response from non-flood request packet");
         }
     }
     
-    // forward packet to a selected group of nodes in a flooding context
+    /// Broadcasts a packet to all neighbouring nodes except the one from which the packet was received.
+    ///
+    /// For each eligible neighbour, the function updates the routing header to reflect the direct path
+    /// from the current node to that neighbour and sends a simulation event.
+    ///
+    /// # Arguments
+    ///
+    /// * `packet` - The packet to broadcast.
+    /// * `who_i_received_the_packet_from` - The node ID from which the original packet was received.
     fn broadcast_packet(&mut self, packet: Packet, who_i_received_the_packet_from: NodeId) {
-        // Copy the list of the neighbours and remove the neighbour drone that sent the flood request
+        // Copy the list of neighbours and remove the neighbour drone that sent the flood request
         let neighbours: HashMap<NodeId, Sender<Packet>> = self
-        .get_packet_send()
-        .iter()
-        .filter(|(&key, _)| key != who_i_received_the_packet_from)
-        .map(|(k, v)| (*k, v.clone()))
-        .collect();
+            .get_packet_send()
+            .iter()
+            .filter(|(&key, _)| key != who_i_received_the_packet_from)
+            .map(|(k, v)| (*k, v.clone()))
+            .collect();
         
-        // iterate on the neighbours list
+        // Iterate on the neighbours list
         for (&node_id, sender) in neighbours.iter() {
             let mut packet_to_send = packet.clone();
             packet_to_send.routing_header = SourceRoutingHeader {
                 hop_index: 1,
-                hops: vec![self.get_id(), node_id]
+                hops: vec![self.get_id(), node_id],
             };
-            // Send a clone packet
+            // Send a clone of the packet and a simulation event
             if let Err(e) = self
-            .get_sim_contr_send()
-            .send(DroneEvent::PacketSent(packet_to_send.clone()))
+                .get_sim_contr_send()
+                .send(DroneEvent::PacketSent(packet_to_send.clone()))
             {
                 log_error!(self.get_id(), "Failed to send PacketSent event: {:?}", e);
             }
@@ -314,14 +401,22 @@ pub trait NetworkNode {
         }
     }
     
+    /// Reverses the routing direction of the provided packet.
+    ///
+    /// This is achieved by removing any nodes beyond the current hop in the routing header,
+    /// reversing the order of the hops, and updating the header so the packet can be sent back.
+    ///
+    /// # Arguments
+    ///
+    /// * `packet` - The packet whose routing header is to be reversed.
     fn reverse_packet_routing_direction(&self, packet: &mut Packet) {
-        // a. create the route back using the path trace of the packet
+        // a. Create the route back using the current hops
         let mut hops_vec: Vec<NodeId> = packet.routing_header.hops.clone();
         
-        // remove the nodes that are not supposed to receive the packet anymore (between self and the original final destination of the packet)
+        // Remove nodes that should no longer receive the packet
         hops_vec.drain(packet.routing_header.hop_index + 1..=hops_vec.len() - 1);
         
-        // reverse the order of the nodes to reach in comparison with the original routing header
+        // Reverse the order to set up the return path
         hops_vec.reverse();
         
         let route_back: SourceRoutingHeader = SourceRoutingHeader {
@@ -329,15 +424,28 @@ pub trait NetworkNode {
             hops: hops_vec,
         };
         
-        // b. update the packet's routing header
+        // b. Update the packet's routing header
         packet.routing_header = route_back;
     }
     
+    /// Adds a communication channel for a neighbouring node.
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - The node ID of the neighbour.
+    /// * `sender` - The sender channel associated with the neighbour.
     fn add_channel(&mut self, id: NodeId, sender: Sender<Packet>) {
         let packet_send = self.get_packet_send();
         packet_send.insert(id, sender);
     }
     
+    /// Removes the communication channel associated with a neighbouring node.
+    ///
+    /// Logs an error if no such channel exists.
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - The node ID of the neighbour to remove.
     fn remove_channel(&mut self, id: NodeId) {
         if !self.get_packet_send().contains_key(&id) {
             log_error!(
@@ -372,40 +480,51 @@ mod tests {
     }
     
     impl NetworkNode for TestNode {
+        /// Returns the unique identifier for this test node.
         fn get_id(&self) -> NodeId {
             self.id
         }
         
+        /// Provides mutable access to the set of flood request IDs seen by this test node.
         fn get_seen_flood_ids(&mut self) -> &mut HashSet<String> {
             &mut self.seen_flood_ids
         }
         
+        /// Returns a mutable reference to the mapping of neighbour nodes to their sender channels.
         fn get_packet_send(&mut self) -> &mut HashMap<NodeId, Sender<Packet>> {
             &mut self.senders
         }
         
+        /// Retrieves a reference to the receiver channel for incoming packets.
         fn get_packet_receiver(&self) -> &Receiver<Packet> {
             &self.receiver
         }
         
+        /// Returns a mutable reference to the test node's random number generator.
         fn get_random_generator(&mut self) -> &mut StdRng {
             &mut self.rng
         }
         
+        /// Returns a reference to the simulation controller sender channel.
         fn get_sim_contr_send(&self) -> &Sender<DroneEvent> {
             &self.sim_controller
         }
         
+        /// Test implementation for handling a routed packet.
+        /// This function is unimplemented in the test node.
         fn handle_routed_packet(&mut self, _packet: Packet) -> bool {
             unimplemented!()
         }
         
+        /// Test implementation for handling a command.
+        /// This function is unimplemented in the test node.
         fn handle_command(&mut self, _command: Command) {
             unimplemented!()
         }
     }
     
     impl TestNode {
+        /// Creates a new test node with the specified identifier.
         fn new(id: NodeId) -> Self {
             Self {
                 id,
@@ -418,6 +537,8 @@ mod tests {
         }
     }
     
+    /// Tests the `forward_packet` function to ensure that a packet is correctly forwarded to the next hop
+    /// and that a simulation event is generated.
     #[test]
     fn test_forward_packet() {
         // Create a test node with ID 1
@@ -429,9 +550,7 @@ mod tests {
         node.senders.insert(2, sender);
         node.sim_controller = sim_sender;
         
-        // Create a test packet
-        // The routing path is [1, 2] and we're at node 1 (index 0)
-        // trying to forward to node 2
+        // Create a test packet with routing header [1, 2] where the current hop is at index 0.
         let packet = Packet {
             pack_type: wg_2024::packet::PacketType::Ack(wg_2024::packet::Ack { fragment_index: 0 }),
             routing_header: wg_2024::network::SourceRoutingHeader {
@@ -441,15 +560,14 @@ mod tests {
             session_id: 42,
         };
         
-        // Test forwarding the packet
-        // Current node is 1 (hops[0]), should forward to 2 (hops[1])
+        // Test forwarding the packet from node 1 to node 2
         node.forward_packet(packet.clone());
         
-        // Verify the packet was received
+        // Verify the packet was received by node 2
         let received = receiver.try_recv().expect("Failed to receive packet");
         assert_eq!(received.session_id, 42);
         
-        // Verify simulation event
+        // Verify that a simulation event was generated
         let sim_event = sim_receiver.try_recv().expect("Failed to receive simulation controller event");
         match sim_event {
             DroneEvent::PacketSent(p) => assert_eq!(p.session_id, 42),
