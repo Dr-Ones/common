@@ -7,16 +7,28 @@ use chrono::Local;
 static LOGGING_ENABLED: Lazy<Mutex<bool>> = Lazy::new(|| Mutex::new(true));
 static LOG_FILE: Lazy<Mutex<Option<File>>> = Lazy::new(|| Mutex::new(None));
 
+/// Enables logging to stdout and resets any log file redirection.
+///
+/// This function sets the logging status to enabled (stdout)
+/// and clears any previously configured log file.
 pub fn enable_logging() {
     *LOGGING_ENABLED.lock().expect("Failed to get LOGGING_ENABLED lock") = true;
     let mut file_guard = LOG_FILE.lock().expect("Failed to get LOG_FILE lock");
     *file_guard = None;
 }
 
+/// Disables logging to stdout.
+///
+/// This function sets the logging status to disabled.
+/// It does not affect an already configured log file.
 pub fn disable_logging() {
     *LOGGING_ENABLED.lock().expect("Failed to get LOGGING_ENABLED lock") = false;
 }
 
+/// Redirects log output to a file.
+///
+/// This function disables stdout logging and configures logging to a file
+/// named "network.log". Log messages will be appended to this file.
 pub fn redirect_logs_to_file() {
     *LOGGING_ENABLED.lock().expect("Failed to get LOGGING_ENABLED lock") = false;
     let mut file_guard = LOG_FILE.lock().expect("Failed to get LOG_FILE lock");
@@ -27,14 +39,34 @@ pub fn redirect_logs_to_file() {
         .expect("Failed to open log file"));
 }
 
+/// Returns whether logging to stdout is enabled.
+///
+/// # Returns
+///
+/// `true` if logging to stdout is enabled, otherwise `false`.
 pub fn is_logging_enabled() -> bool {
     *LOGGING_ENABLED.lock().expect("Failed to get LOGGING_ENABLED lock")
 }
 
+/// Checks if a log file is currently configured for logging.
+///
+/// # Returns
+///
+/// `true` if a log file is set for logging, otherwise `false`.
 pub fn has_log_file() -> bool {
     LOG_FILE.lock().expect("Failed to get LOG_FILE lock").is_some()
 }
 
+/// Writes a log message to the log file if available.
+///
+/// The log message includes a timestamp, log level, node identifier,
+/// and the provided message. If writing fails, an error is printed to stderr.
+///
+/// # Arguments
+///
+/// * `node_id` - Identifier for the node that is logging the message.
+/// * `message` - The log message to be written.
+/// * `is_error` - A flag indicating whether the message represents an error.
 pub fn write_to_log(node_id: u8, message: String, is_error: bool) {
     if let Some(file) = LOG_FILE.lock().expect("Failed to get LOG_FILE lock").as_mut() {
         let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S%.3f");
@@ -49,6 +81,16 @@ pub fn write_to_log(node_id: u8, message: String, is_error: bool) {
 }
 
 #[macro_export]
+/// Logs a status message.
+///
+/// If logging to stdout is enabled, the message is printed to stdout.
+/// Otherwise, if a log file is configured, the message is written to the file.
+///
+/// # Examples
+///
+/// ```
+/// log_status!(1, "Node is online");
+/// ```
 macro_rules! log_status {
     ($node_id:expr, $($arg:tt)*) => {
         if $crate::logging::is_logging_enabled() {
@@ -60,6 +102,16 @@ macro_rules! log_status {
 }
 
 #[macro_export]
+/// Logs an error message.
+///
+/// If logging to stdout is enabled, the message is printed to stderr.
+/// Otherwise, if a log file is configured, the message is written to the file as an error.
+///
+/// # Examples
+///
+/// ```
+/// log_error!(1, "Failed to connect to the server");
+/// ```
 macro_rules! log_error {
     ($node_id:expr, $($arg:tt)*) => {
         if $crate::logging::is_logging_enabled() {
